@@ -58,6 +58,33 @@ class HilalObservationApp:
         # Tombol untuk menyimpan hasil
         tk.Button(self.menu_frame, text="Simpan Hasil", command=self.save_result).grid(row=0, column=6, padx=5)
 
+        # content frame
+        self.content_frame = tk.Frame(root)
+        self.content_frame.pack(side=tk.TOP, expand=True)
+
+        self.original_frame = tk.Frame(self.content_frame)
+        self.original_frame.pack(side=tk.LEFT, padx=10, pady=10)
+
+        self.processed_frame = tk.Frame(self.content_frame)
+        self.processed_frame.pack(side=tk.LEFT, padx=10, pady=10)
+
+        self.histogram_frame = tk.Frame(self.content_frame)
+        self.histogram_frame.pack(side=tk.LEFT, padx=10, pady=10)
+
+        self.original_label = tk.Label(self.original_frame, text="Original Image")
+        self.original_label.pack()
+        self.original_canvas = tk.Label(self.original_frame)
+        self.original_canvas.pack()
+
+        self.processed_label = tk.Label(self.processed_frame, text="Processed Image")
+        self.processed_label.pack()
+        self.processed_canvas = tk.Label(self.processed_frame)
+        self.processed_canvas.pack()
+
+        self.histogram_label = tk.Label(self.histogram_frame, text="Histogram")
+        self.histogram_label.pack()
+        self.histogram_canvas = None
+
         self.slider_frame = tk.Frame(self.root)
         self.slider_frame.pack(pady=10)
 
@@ -105,7 +132,7 @@ class HilalObservationApp:
         self.stack_frame.pack(pady=10)
         
         tk.Label(self.stack_frame, text="Daftar Gambar untuk Stacking:").pack()
-        self.stack_listbox = tk.Listbox(self.stack_frame, width=80, height=5)
+        self.stack_listbox = tk.Listbox(self.stack_frame, width=80, height=3)
         self.stack_listbox.pack()
         
         # Tombol untuk menghapus dari stacking
@@ -132,6 +159,7 @@ class HilalObservationApp:
 
             self.original_image = frame
             self.processed_image = frame.copy()
+            self.display_histogram()
 
             # Tambahkan ke stack langsung
             # self.stacked_images.append(frame.copy())
@@ -163,6 +191,7 @@ class HilalObservationApp:
                 
                 # Tampilkan gambar
                 self.display_images()
+                self.display_histogram()
                 
                 self.info_label.config(text=f"Gambar dimuat: {os.path.basename(file_path)}", fg="green")
                 
@@ -198,6 +227,7 @@ class HilalObservationApp:
         if self.original_image is not None:
             self.processed_image = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)
             self.display_images()
+            self.display_histogram()
             self.info_label.config(text="Greyscale diterapkan", fg="blue")
     
     def apply_histogram_equalization(self):
@@ -213,6 +243,7 @@ class HilalObservationApp:
                 self.processed_image = cv2.cvtColor(ycrcb, cv2.COLOR_YCrCb2BGR)
             
             self.display_images()
+            self.display_histogram()
         # Postprocessing RGB Range
         b, g, r = cv2.split(self.processed_image)
 
@@ -227,6 +258,27 @@ class HilalObservationApp:
         self.processed_image = cv2.merge([b, g, r])
         
         self.info_label.config(text="Histogram equalization diterapkan", fg="blue")
+
+    def display_histogram(self):
+        if self.processed_image is not None:
+            if self.histogram_canvas:
+                self.histogram_canvas.get_tk_widget().destroy()
+
+            fig, ax = plt.subplots(figsize=(4, 3))
+
+            if len(self.processed_image.shape) == 2:
+                ax.hist(self.processed_image.ravel(), bins=256, color='gray')
+            else:
+                color = ('b', 'g', 'r')
+                for i, col in enumerate(color):
+                    hist = cv2.calcHist([self.processed_image], [i], None, [256], [0, 256])
+                    ax.plot(hist, color=col)
+            ax.set_xlim([0, 256])
+            ax.set_title('Histogram')
+
+            self.histogram_canvas = FigureCanvasTkAgg(fig, master=self.histogram_frame)
+            self.histogram_canvas.draw()
+            self.histogram_canvas.get_tk_widget().pack()
     
     def add_to_stack(self):
         if self.processed_image is not None:
@@ -267,6 +319,7 @@ class HilalObservationApp:
             # Tampilkan hasil stacking
             self.processed_image = self.stacked_result
             self.display_images()
+            self.display_histogram()
             
             self.info_label.config(text=f"Stacking selesai ({len(self.stacked_images)} gambar)", fg="green")
             
@@ -312,6 +365,7 @@ class HilalObservationApp:
         preview = cv2.merge([b, g, r])
         self.processed_image = preview
         self.display_images()
+        self.display_histogram()
 
 if __name__ == "__main__":
     root = tk.Tk()
